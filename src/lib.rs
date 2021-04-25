@@ -1,4 +1,5 @@
 mod utils;
+mod game;
 
 use wasm_bindgen::prelude::*;
 
@@ -14,6 +15,10 @@ extern {
 }
 
 #[wasm_bindgen]
-pub fn greet() {
-    alert("Hello, wasm-game-of-life!");
+pub fn greet(message: &str) {
+    alert(message);
+}
+
+fn test(){
+    let world = game::World::default();
 }
