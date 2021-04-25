@@ -1,29 +1,63 @@
 use std::fmt::Error;
 use std::fmt;
 
+use wasm_bindgen::prelude::*;
+
 #[derive(Copy,Clone, PartialEq, Debug)]
 pub enum Cell {
     Dead = 0,
     Alive = 1
 }
 
+#[wasm_bindgen]
 pub struct World {
     width: u32,
     height: u32,
     cells: Vec<Cell>,
 }
 
+// these are functions that will be exposed to WASM bindgen
+#[wasm_bindgen]
 impl World{
-    pub fn new(width: u32, height: u32) -> Self {
-        let cells = (0.. height * width).map(|_x| {Cell::Dead}).collect();
-        World{
-            width,
-            height,
-            cells
-        }
+    pub fn wasm_create() -> Self {
+        return World::default()
     }
+
+    pub fn wasm_tick(&mut self){
+        self.tick().unwrap()
+    }
+
+    pub fn wasm_render(&self) -> String{
+        self.to_string()
+    }
+
     pub fn get_width(&self) -> u32 {self.width}
     pub fn get_height(&self) -> u32 {self.height}
+}
+
+
+// These functions stay internal to the wasm compilation -- JS cannot access
+impl World{
+    pub fn tick(&mut self) -> Result<(), String> {
+        let mut new_world = self.cells.clone();
+        for row in 0..self.height {
+            for col in 0..self.width {
+                let index = self.index(row, col)?;
+                let neighbors = self.count_neighbors(row, col)?;
+                let cell = self.cells[index];
+                let next_cell = match (cell, neighbors) {
+                    (Cell::Alive, x) if x < 2 => Cell::Dead,
+                    (Cell::Alive, x) if x >= 2 && x <= 3 => Cell::Alive,
+                    (Cell::Dead, x) if x == 3 => Cell::Alive,
+                    (Cell::Alive, x) if x > 3 => Cell::Dead,
+                    (cell, _) => cell,
+                };
+                new_world[index] = next_cell;
+            }
+        }
+        self.cells = new_world;
+        Ok(())
+    }
 
     fn get_cell(&self, row: u32, column:u32) -> Result<&Cell, String>{
         let index = self.index(row, column)?;
@@ -55,25 +89,13 @@ impl World{
         Ok(living_neighbors)
     }
 
-    pub fn tick(&mut self) -> Result<(), String>{
-        let mut new_world = self.cells.clone();
-        for row in 0..self.height {
-            for col in 0..self.width {
-                let index = self.index(row, col)?;
-                let neighbors = self.count_neighbors(row, col)?;
-                let cell = self.cells[index];
-                let next_cell = match (cell, neighbors){
-                    (Cell::Alive, x) if x < 2 => Cell::Dead,
-                    (Cell::Alive, x) if x>=2 && x<=3 => Cell::Alive,
-                    (Cell::Dead, x) if x==3 => Cell::Alive,
-                    (Cell::Alive, x) if x>3 => Cell::Dead,
-                    (cell, _) => cell,
-                };
-                new_world[index] = next_cell;
-            }
+    pub fn new(width:u32, height: u32) -> Self {
+        let cells = (0..width * height).map(|_x| {Cell::Dead}).collect();
+        World {
+            width,
+            height,
+            cells
         }
-        self.cells = new_world;
-        Ok(())
     }
 }
 
